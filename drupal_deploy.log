@@ -1,0 +1,59 @@
+Using /home/user01/drupal-ansible/ansible.cfg as config file
+
+PLAY [Install Drupal 10 with Nginx, PostgreSQL, PHP 8.1 on Ubuntu 22.04] *******
+
+TASK [Gathering Facts] *********************************************************
+ok: [drupal]
+
+TASK [Update apt cache] ********************************************************
+ok: [drupal] => {"cache_update_time": 1770905941, "cache_updated": false, "changed": false}
+
+TASK [Install required packages] ***********************************************
+ok: [drupal] => {"cache_update_time": 1770905941, "cache_updated": false, "changed": false}
+
+TASK [Start PostgreSQL] ********************************************************
+ok: [drupal] => {"changed": false, "cmd": ["/etc/init.d/postgresql", "start"], "delta": null, "end": null, "msg": "Did not run command since '/var/run/postgresql/.s.PGSQL.5432' exists", "rc": 0, "start": null, "stderr": "", "stderr_lines": [], "stdout": "skipped, since /var/run/postgresql/.s.PGSQL.5432 exists", "stdout_lines": ["skipped, since /var/run/postgresql/.s.PGSQL.5432 exists"]}
+
+TASK [Configure pg_hba.conf - trust] *******************************************
+ok: [drupal] => {"backup": "", "changed": false, "msg": ""}
+
+TASK [Configure pg_hba.conf - IPv4] ********************************************
+ok: [drupal] => {"backup": "", "changed": false, "msg": ""}
+
+TASK [Configure pg_hba.conf - IPv6] ********************************************
+ok: [drupal] => {"backup": "", "changed": false, "msg": ""}
+
+TASK [Flush handlers to restart PostgreSQL] ************************************
+
+TASK [Create DB user] **********************************************************
+ok: [drupal] => {"changed": false, "queries": [], "user": "drupal"}
+
+TASK [Create database] *********************************************************
+ok: [drupal] => {"changed": false, "db": "drupal", "executed_commands": []}
+
+TASK [Start PHP-FPM] ***********************************************************
+ok: [drupal] => {"changed": false, "cmd": ["/etc/init.d/php8.1-fpm", "start"], "delta": null, "end": null, "msg": "Did not run command since '/run/php/php8.1-fpm.pid' exists", "rc": 0, "start": null, "stderr": "", "stderr_lines": [], "stdout": "skipped, since /run/php/php8.1-fpm.pid exists", "stdout_lines": ["skipped, since /run/php/php8.1-fpm.pid exists"]}
+
+TASK [Start Nginx] *************************************************************
+ok: [drupal] => {"changed": false, "cmd": ["/etc/init.d/nginx", "start"], "delta": null, "end": null, "msg": "Did not run command since '/run/nginx.pid' exists", "rc": 0, "start": null, "stderr": "", "stderr_lines": [], "stdout": "skipped, since /run/nginx.pid exists", "stdout_lines": ["skipped, since /run/nginx.pid exists"]}
+
+TASK [Configure Nginx site for Drupal] *****************************************
+changed: [drupal] => {"changed": true, "checksum": "14b9c65a818ed2c8dc685c81ca809d40b81b5386", "dest": "/etc/nginx/sites-available/drupal", "gid": 0, "group": "root", "md5sum": "7615805680fd1d0b25b40e876abb0a94", "mode": "0644", "owner": "root", "size": 513, "src": "/root/.ansible/tmp/ansible-tmp-1770908094.9904652-49217-132082525044468/source", "state": "file", "uid": 0}
+
+TASK [Enable site] *************************************************************
+ok: [drupal] => {"changed": false, "dest": "/etc/nginx/sites-enabled/drupal", "gid": 0, "group": "root", "mode": "0777", "owner": "root", "size": 33, "src": "/etc/nginx/sites-available/drupal", "state": "link", "uid": 0}
+
+TASK [Remove default site] *****************************************************
+ok: [drupal] => {"changed": false, "path": "/etc/nginx/sites-enabled/default", "state": "absent"}
+
+TASK [Test Nginx configuration] ************************************************
+ok: [drupal] => {"changed": false, "cmd": ["nginx", "-t"], "delta": "0:00:00.014367", "end": "2026-02-12 14:54:56.766392", "msg": "", "rc": 0, "start": "2026-02-12 14:54:56.752025", "stderr": "nginx: the configuration file /etc/nginx/nginx.conf syntax is ok\nnginx: configuration file /etc/nginx/nginx.conf test is successful", "stderr_lines": ["nginx: the configuration file /etc/nginx/nginx.conf syntax is ok", "nginx: configuration file /etc/nginx/nginx.conf test is successful"], "stdout": "", "stdout_lines": []}
+
+TASK [Flush handlers to restart Nginx (if config is valid)] ********************
+
+RUNNING HANDLER [restart nginx] ************************************************
+fatal: [drupal]: FAILED! => {"changed": true, "cmd": ["/etc/init.d/nginx", "restart"], "delta": "0:00:16.054091", "end": "2026-02-12 14:55:13.133519", "msg": "non-zero return code", "rc": 1, "start": "2026-02-12 14:54:57.079428", "stderr": "", "stderr_lines": [], "stdout": " * Restarting nginx nginx\n   ...fail!", "stdout_lines": [" * Restarting nginx nginx", "   ...fail!"]}
+
+PLAY RECAP *********************************************************************
+drupal                     : ok=15   changed=1    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+

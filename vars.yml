@@ -1,0 +1,6 @@
+drupal_domain: localhost
+drupal_root: /var/www/drupal
+db_name: drupal
+db_user: drupal
+db_password: drupal123
+db_host: localhost

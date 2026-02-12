@@ -1,0 +1,216 @@
+---
+- name: Install Drupal 10 with Nginx, PostgreSQL, PHP 8.1 on Ubuntu 22.04
+  hosts: drupal
+  become: yes
+  vars_files:
+    - vars.yml
+
+  tasks:
+    # ----- 1. Базовая настройка -----
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    # ----- 2. Установка пакетов -----
+    - name: Install required packages
+      apt:
+        name:
+          - sudo
+          - acl
+          - nginx
+          - postgresql
+          - postgresql-contrib
+          - libpq-dev
+          - python3-psycopg2
+          - php8.1
+          - php8.1-fpm
+          - php8.1-pgsql
+          - php8.1-gd
+          - php8.1-xml
+          - php8.1-zip
+          - php8.1-curl
+          - php8.1-mbstring
+          - php8.1-intl
+          - php8.1-opcache
+          - php8.1-cli
+          - php8.1-common
+          - curl
+          - git
+          - unzip
+        state: present
+
+    # ----- 3. PostgreSQL 14 -----
+    - name: Start PostgreSQL
+      command: /etc/init.d/postgresql start
+      args:
+        creates: /var/run/postgresql/.s.PGSQL.5432
+
+    - name: Configure pg_hba.conf - trust
+      lineinfile:
+        path: /etc/postgresql/14/main/pg_hba.conf
+        regexp: '^local\s+all\s+all\s+'
+        line: 'local   all             all                                     trust'
+        backup: yes
+      notify: restart postgresql
+
+    - name: Configure pg_hba.conf - IPv4
+      lineinfile:
+        path: /etc/postgresql/14/main/pg_hba.conf
+        regexp: '^host\s+all\s+all\s+127\.0\.0\.1/32\s+'
+        line: 'host    all             all             127.0.0.1/32            trust'
+
+    - name: Configure pg_hba.conf - IPv6
+      lineinfile:
+        path: /etc/postgresql/14/main/pg_hba.conf
+        regexp: '^host\s+all\s+all\s+::1/128\s+'
+        line: 'host    all             all             ::1/128                 trust'
+
+    - name: Flush handlers to restart PostgreSQL
+      meta: flush_handlers
+
+    - name: Create DB user
+      become: yes
+      become_user: postgres
+      postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        role_attr_flags: CREATEDB,NOSUPERUSER
+        state: present
+        login_host: localhost
+        login_user: postgres
+      no_log: false
+
+    - name: Create database
+      become: yes
+      become_user: postgres
+      postgresql_db:
+        name: "{{ db_name }}"
+        owner: "{{ db_user }}"
+        state: present
+        login_host: localhost
+        login_user: postgres
+      no_log: false
+
+    # ----- 4. PHP-FPM -----
+    - name: Start PHP-FPM
+      command: /etc/init.d/php8.1-fpm start
+      args:
+        creates: /run/php/php8.1-fpm.pid
+
+    # ----- 5. Nginx -----
+    - name: Start Nginx
+      command: /etc/init.d/nginx start
+      args:
+        creates: /run/nginx.pid
+      ignore_errors: yes
+
+    - name: Configure Nginx site for Drupal
+      template:
+        src: templates/nginx-drupal.conf.j2
+        dest: /etc/nginx/sites-available/drupal
+      notify: restart nginx
+
+    - name: Enable site
+      file:
+        src: /etc/nginx/sites-available/drupal
+        dest: /etc/nginx/sites-enabled/drupal
+        state: link
+      notify: restart nginx
+
+    - name: Remove default site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: restart nginx
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Flush handlers to restart Nginx (if config is valid)
+      meta: flush_handlers
+      when: nginx_test is success
+
+    # ----- 6. Composer (свежий) -----
+    - name: Download Composer installer
+      get_url:
+        url: https://getcomposer.org/installer
+        dest: /tmp/composer-setup.php
+        mode: 0644
+
+    - name: Install Composer globally
+      command: php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+      args:
+        creates: /usr/local/bin/composer
+      environment:
+        COMPOSER_ALLOW_SUPERUSER: 1
+
+    # ----- 7. Drupal 10 (совместим с PHP 8.1) -----
+    - name: Remove existing Drupal directory (clean install)
+      file:
+        path: "{{ drupal_root }}"
+        state: absent
+
+    - name: Install Drupal 10 via Composer
+      composer:
+        command: create-project
+        arguments: drupal/recommended-project:^10 "{{ drupal_root }}"
+        working_dir: /var/www
+      environment:
+        COMPOSER_ALLOW_SUPERUSER: 1
+
+    - name: Set ownership
+      file:
+        path: "{{ drupal_root }}"
+        owner: www-data
+        group: www-data
+        recurse: yes
+
+    - name: Create Drupal settings.php from template
+      template:
+        src: templates/settings.php.j2
+        dest: "{{ drupal_root }}/web/sites/default/settings.php"
+        owner: www-data
+        group: www-data
+        mode: 0644
+
+    - name: Create files directory
+      file:
+        path: "{{ drupal_root }}/web/sites/default/files"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: 0775
+
+    - name: Install Drupal via Drush
+      shell: |
+        cd {{ drupal_root }}
+        vendor/bin/drush site:install \
+          --db-url=pgsql://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }} \
+          --account-name=admin \
+          --account-pass=admin \
+          --site-name="Drupal on Ansible" \
+          --yes
+      args:
+        creates: "{{ drupal_root }}/web/sites/default/settings.php"
+      environment:
+        COMPOSER_ALLOW_SUPERUSER: 1
+
+    - name: Fix permissions
+      file:
+        path: "{{ drupal_root }}/web/sites/default/files"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: 0775
+        recurse: yes
+
+  handlers:
+    - name: restart postgresql
+      command: /etc/init.d/postgresql restart
+
+    - name: restart nginx
+      command: /etc/init.d/nginx restart
