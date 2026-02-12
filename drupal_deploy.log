@@ -34,26 +34,49 @@ ok: [drupal] => {"changed": false, "db": "drupal", "executed_commands": []}
 TASK [Start PHP-FPM] ***********************************************************
 ok: [drupal] => {"changed": false, "cmd": ["/etc/init.d/php8.1-fpm", "start"], "delta": null, "end": null, "msg": "Did not run command since '/run/php/php8.1-fpm.pid' exists", "rc": 0, "start": null, "stderr": "", "stderr_lines": [], "stdout": "skipped, since /run/php/php8.1-fpm.pid exists", "stdout_lines": ["skipped, since /run/php/php8.1-fpm.pid exists"]}
 
-TASK [Start Nginx] *************************************************************
-ok: [drupal] => {"changed": false, "cmd": ["/etc/init.d/nginx", "start"], "delta": null, "end": null, "msg": "Did not run command since '/run/nginx.pid' exists", "rc": 0, "start": null, "stderr": "", "stderr_lines": [], "stdout": "skipped, since /run/nginx.pid exists", "stdout_lines": ["skipped, since /run/nginx.pid exists"]}
+TASK [Remove default site] *****************************************************
+ok: [drupal] => {"changed": false, "path": "/etc/nginx/sites-enabled/default", "state": "absent"}
 
-TASK [Configure Nginx site for Drupal] *****************************************
-changed: [drupal] => {"changed": true, "checksum": "14b9c65a818ed2c8dc685c81ca809d40b81b5386", "dest": "/etc/nginx/sites-available/drupal", "gid": 0, "group": "root", "md5sum": "7615805680fd1d0b25b40e876abb0a94", "mode": "0644", "owner": "root", "size": 513, "src": "/root/.ansible/tmp/ansible-tmp-1770908094.9904652-49217-132082525044468/source", "state": "file", "uid": 0}
+TASK [Configure Nginx site for Drupal (correct root)] **************************
+ok: [drupal] => {"changed": false, "checksum": "14b9c65a818ed2c8dc685c81ca809d40b81b5386", "dest": "/etc/nginx/sites-available/drupal", "gid": 0, "group": "root", "mode": "0644", "owner": "root", "path": "/etc/nginx/sites-available/drupal", "size": 513, "state": "file", "uid": 0}
 
 TASK [Enable site] *************************************************************
 ok: [drupal] => {"changed": false, "dest": "/etc/nginx/sites-enabled/drupal", "gid": 0, "group": "root", "mode": "0777", "owner": "root", "size": 33, "src": "/etc/nginx/sites-available/drupal", "state": "link", "uid": 0}
 
-TASK [Remove default site] *****************************************************
-ok: [drupal] => {"changed": false, "path": "/etc/nginx/sites-enabled/default", "state": "absent"}
-
 TASK [Test Nginx configuration] ************************************************
-ok: [drupal] => {"changed": false, "cmd": ["nginx", "-t"], "delta": "0:00:00.014367", "end": "2026-02-12 14:54:56.766392", "msg": "", "rc": 0, "start": "2026-02-12 14:54:56.752025", "stderr": "nginx: the configuration file /etc/nginx/nginx.conf syntax is ok\nnginx: configuration file /etc/nginx/nginx.conf test is successful", "stderr_lines": ["nginx: the configuration file /etc/nginx/nginx.conf syntax is ok", "nginx: configuration file /etc/nginx/nginx.conf test is successful"], "stdout": "", "stdout_lines": []}
+ok: [drupal] => {"changed": false, "cmd": ["nginx", "-t"], "delta": "0:00:00.015331", "end": "2026-02-12 15:22:06.514483", "msg": "", "rc": 0, "start": "2026-02-12 15:22:06.499152", "stderr": "nginx: the configuration file /etc/nginx/nginx.conf syntax is ok\nnginx: configuration file /etc/nginx/nginx.conf test is successful", "stderr_lines": ["nginx: the configuration file /etc/nginx/nginx.conf syntax is ok", "nginx: configuration file /etc/nginx/nginx.conf test is successful"], "stdout": "", "stdout_lines": []}
 
-TASK [Flush handlers to restart Nginx (if config is valid)] ********************
+TASK [Force restart Nginx (pkill + start)] *************************************
+ok: [drupal] => {"changed": false, "cmd": "pkill nginx || true\n/etc/init.d/nginx start\n", "delta": null, "end": null, "msg": "Did not run command since '/run/nginx.pid' exists", "rc": 0, "start": null, "stderr": "", "stderr_lines": [], "stdout": "skipped, since /run/nginx.pid exists", "stdout_lines": ["skipped, since /run/nginx.pid exists"]}
 
-RUNNING HANDLER [restart nginx] ************************************************
-fatal: [drupal]: FAILED! => {"changed": true, "cmd": ["/etc/init.d/nginx", "restart"], "delta": "0:00:16.054091", "end": "2026-02-12 14:55:13.133519", "msg": "non-zero return code", "rc": 1, "start": "2026-02-12 14:54:57.079428", "stderr": "", "stderr_lines": [], "stdout": " * Restarting nginx nginx\n   ...fail!", "stdout_lines": [" * Restarting nginx nginx", "   ...fail!"]}
+TASK [Download Composer installer] *********************************************
+ok: [drupal] => {"changed": false, "checksum_dest": "749cade3e3aa95c5e935ec7c36447bcfaa4b7126", "checksum_src": "749cade3e3aa95c5e935ec7c36447bcfaa4b7126", "dest": "/tmp/composer-setup.php", "elapsed": 5, "gid": 0, "group": "root", "md5sum": "454ed70df56cec5c73b2aa38e673350f", "mode": "0644", "msg": "OK (59524 bytes)", "owner": "root", "size": 59524, "src": "/root/.ansible/tmp/ansible-tmp-1770909726.902257-52088-21192160147068/tmp79ptde_b", "state": "file", "status_code": 200, "uid": 0, "url": "https://getcomposer.org/installer"}
+
+TASK [Install Composer globally] ***********************************************
+ok: [drupal] => {"changed": false, "cmd": ["php", "/tmp/composer-setup.php", "--install-dir=/usr/local/bin", "--filename=composer"], "delta": null, "end": null, "msg": "Did not run command since '/usr/local/bin/composer' exists", "rc": 0, "start": null, "stderr": "", "stderr_lines": [], "stdout": "skipped, since /usr/local/bin/composer exists", "stdout_lines": ["skipped, since /usr/local/bin/composer exists"]}
+
+TASK [Remove existing Drupal directory (clean install)] ************************
+skipping: [drupal] => {"changed": false, "false_condition": false, "skip_reason": "Conditional result was False"}
+
+TASK [Install Drupal 10 via Composer] ******************************************
+fatal: [drupal]: FAILED! => {"changed": false, "msg": "Creating a \"drupal/recommended-project:^10\" project at \"./drupal\" In CreateProjectCommand.php line 368: Project directory \"/var/www/drupal\" is not empty. create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]", "stdout": "Creating a \"drupal/recommended-project:^10\" project at \"./drupal\"\n\nIn CreateProjectCommand.php line 368:\n                                                     \n  Project directory \"/var/www/drupal\" is not empty.  \n                                                     \n\ncreate-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]\n\n", "stdout_lines": ["Creating a \"drupal/recommended-project:^10\" project at \"./drupal\"", "", "In CreateProjectCommand.php line 368:", "                                                     ", "  Project directory \"/var/www/drupal\" is not empty.  ", "                                                     ", "", "create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]", ""]}
+...ignoring
+
+TASK [Set ownership] ***********************************************************
+ok: [drupal] => {"changed": false, "gid": 33, "group": "www-data", "mode": "0755", "owner": "www-data", "path": "/var/www/drupal", "size": 4096, "state": "directory", "uid": 33}
+
+TASK [Create Drupal settings.php from template] ********************************
+ok: [drupal] => {"changed": false, "checksum": "5a13123954da807a0814aaa0c6c9bb76714f0529", "dest": "/var/www/drupal/web/sites/default/settings.php", "gid": 33, "group": "www-data", "mode": "0644", "owner": "www-data", "path": "/var/www/drupal/web/sites/default/settings.php", "size": 401, "state": "file", "uid": 33}
+
+TASK [Create files directory] **************************************************
+ok: [drupal] => {"changed": false, "gid": 33, "group": "www-data", "mode": "0775", "owner": "www-data", "path": "/var/www/drupal/web/sites/default/files", "size": 4096, "state": "directory", "uid": 33}
+
+TASK [Install Drupal via Drush] ************************************************
+ok: [drupal] => {"changed": false, "cmd": "cd /var/www/drupal\nvendor/bin/drush site:install  --db-url=pgsql://drupal:drupal123@localhost/drupal  --account-name=admin  --account-pass=admin  --site-name=\"Drupal on Ansible\"  --yes\n", "delta": null, "end": null, "msg": "Did not run command since '/var/www/drupal/web/sites/default/settings.php' exists", "rc": 0, "start": null, "stderr": "", "stderr_lines": [], "stdout": "skipped, since /var/www/drupal/web/sites/default/settings.php exists", "stdout_lines": ["skipped, since /var/www/drupal/web/sites/default/settings.php exists"]}
+
+TASK [Fix permissions] *********************************************************
+ok: [drupal] => {"changed": false, "gid": 33, "group": "www-data", "mode": "0775", "owner": "www-data", "path": "/var/www/drupal/web/sites/default/files", "size": 4096, "state": "directory", "uid": 33}
 
 PLAY RECAP *********************************************************************
-drupal                     : ok=15   changed=1    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+drupal                     : ok=23   changed=0    unreachable=0    failed=0    skipped=1    rescued=0    ignored=1   
 
